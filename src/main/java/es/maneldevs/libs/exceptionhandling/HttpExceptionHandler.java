@@ -8,10 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 
 @RestControllerAdvice
 public class HttpExceptionHandler {
@@ -28,13 +28,29 @@ public class HttpExceptionHandler {
         return new HttpError(HttpStatus.BAD_REQUEST, request, ex);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    // @ExceptionHandler(MethodArgumentNotValidException.class)
+    // @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    // public HttpError handleValidationException(ServerHttpRequest request, MethodArgumentNotValidException ex) {
+    //     List<ObjectError> objectErrors = ex.getBindingResult().getAllErrors();
+    //     Map<String, String> errors = objectErrors.stream()
+    //         .collect(Collectors.toMap(e -> ((FieldError) e).getField(), e -> e.getDefaultMessage()));
+    //     return new HttpError(HttpStatus.UNPROCESSABLE_ENTITY, request, ex, errors);
+    // }
+
+    @ExceptionHandler(WebExchangeBindException.class)
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-    public HttpError handleValidationExcecption(ServerHttpRequest request, MethodArgumentNotValidException ex) {
+    public HttpError handleWebExchangeBindException(ServerHttpRequest request, WebExchangeBindException ex) {
         List<ObjectError> objectErrors = ex.getBindingResult().getAllErrors();
         Map<String, String> errors = objectErrors.stream()
             .collect(Collectors.toMap(e -> ((FieldError) e).getField(), e -> e.getDefaultMessage()));
-        return new HttpError(HttpStatus.UNPROCESSABLE_ENTITY, request, ex, errors);
+        String message = ex.getMessage().substring(0, ex.getMessage().indexOf(' ', ex.getMessage().indexOf(' ')+1));
+        return new HttpError(HttpStatus.UNPROCESSABLE_ENTITY, request, message, ex, errors);
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public HttpError handleValidationException(ServerHttpRequest request, ValidationException ex) {
+        return new HttpError(HttpStatus.UNPROCESSABLE_ENTITY, request, ex, ex.getErrors());
     }
 
     @ExceptionHandler(Exception.class)
